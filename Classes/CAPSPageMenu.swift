@@ -58,6 +58,7 @@ class MenuItemView: UIView {
 }
 
 public enum CAPSPageMenuOption {
+    case enabledScrollForControllers(Bool)
     case selectionIndicatorBottomOffset(CGFloat)
     case selectionIndicatorHeight(CGFloat)
     case menuItemSeparatorWidth(CGFloat)
@@ -121,6 +122,7 @@ open class CAPSPageMenu: UIViewController, UIScrollViewDelegate, UIGestureRecogn
     var currentPageIndex : Int = 0
     var lastPageIndex : Int = 0
     
+    open var enabledScrollForControllers : Bool = false
     open var selectionIndicatorColor : UIColor = UIColor.white
     open var selectedMenuItemLabelColor : UIColor = UIColor.white
     open var unselectedMenuItemLabelColor : UIColor = UIColor.lightGray
@@ -195,6 +197,8 @@ open class CAPSPageMenu: UIViewController, UIScrollViewDelegate, UIGestureRecogn
         if let options = pageMenuOptions {
             for option in options {
                 switch (option) {
+                case let .enabledScrollForControllers(value):
+                    enabledScrollForControllers = value
                 case let .selectionIndicatorBottomOffset(value):
                     selectionIndicatorBottomOffset = value
                 case let .selectionIndicatorHeight(value):
@@ -353,7 +357,8 @@ open class CAPSPageMenu: UIViewController, UIScrollViewDelegate, UIGestureRecogn
             menuScrollView.layer.shadowOffset = CGSize(width:0, height:menuShadowOffset)
             menuScrollView.layer.masksToBounds = true
         }
-        
+        // Disable controller scroll view option
+        controllerScrollView.isScrollEnabled = enabledScrollForControllers
         // Disable scroll bars
         menuScrollView.showsHorizontalScrollIndicator = false
         menuScrollView.showsVerticalScrollIndicator = false
