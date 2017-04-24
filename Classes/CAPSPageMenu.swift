@@ -46,6 +46,7 @@ class MenuItemView: UIView {
         self.addSubview(menuItemSeparator!)
         
         self.addSubview(titleLabel!)
+        self.autoresizingMask = [.flexibleWidth]//TEST ipad support split screen
     }
     
     func setTitleText(_ text: NSString) {
@@ -326,7 +327,7 @@ open class CAPSPageMenu: UIViewController, UIScrollViewDelegate, UIGestureRecogn
         menuScrollView.frame = CGRect(x: 0.0, y: 0.0, width: self.view.frame.width, height: menuHeight)
         
         self.view.addSubview(menuScrollView)
-        
+        menuScrollView.autoresizingMask = [.flexibleWidth]//TEST ipad support split screen
         let menuScrollView_constraint_H:Array = NSLayoutConstraint.constraints(withVisualFormat: "H:|[menuScrollView]|", options: NSLayoutFormatOptions(rawValue: 0), metrics: nil, views: viewsDictionary)
         let menuScrollView_constraint_V:Array = NSLayoutConstraint.constraints(withVisualFormat: "V:[menuScrollView(\(menuHeight))]", options: NSLayoutFormatOptions(rawValue: 0), metrics: nil, views: viewsDictionary)
         
@@ -396,7 +397,6 @@ open class CAPSPageMenu: UIViewController, UIScrollViewDelegate, UIGestureRecogn
         } else {
             menuScrollView.contentSize = CGSize(width: (menuItemWidth + menuMargin) * CGFloat(controllerArray.count) + menuMargin, height: menuHeight)
         }
-        
         // Configure controller scroll view content size
         controllerScrollView.contentSize = CGSize(width: self.view.frame.width * CGFloat(controllerArray.count), height: 0.0)
         
@@ -490,7 +490,6 @@ open class CAPSPageMenu: UIViewController, UIScrollViewDelegate, UIGestureRecogn
             // Add menu item view to menu scroll view
             menuScrollView.addSubview(menuItemView)
             menuItems.append(menuItemView)
-            
             index += 1
         }
         
@@ -954,6 +953,92 @@ open class CAPSPageMenu: UIViewController, UIScrollViewDelegate, UIGestureRecogn
         oldVC.view.removeFromSuperview()
         oldVC.removeFromParentViewController()
     }
+    
+    
+    
+    // MARK: - TEMPORARY FIX FOR IPAD SPLIT SCREEN SUPPORT
+    open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        //super.traitCollectionDidChange(previousTraitCollection)
+        DispatchQueue.main.asyncAfter(deadline: .now()) {
+            
+            // Configure controller scroll view content size
+            self.controllerScrollView.contentSize = CGSize(width: self.view.frame.width * CGFloat(self.controllerArray.count), height: self.view.frame.height - self.menuHeight)
+            
+            let oldCurrentOrientationIsPortrait : Bool = self.currentOrientationIsPortrait
+            self.currentOrientationIsPortrait = UIApplication.shared.statusBarOrientation.isPortrait
+            
+            if (oldCurrentOrientationIsPortrait && UIDevice.current.orientation.isLandscape) || (!oldCurrentOrientationIsPortrait && UIDevice.current.orientation.isPortrait) {
+                self.didLayoutSubviewsAfterRotation = true
+            }
+            
+            //Resize menu items if using as segmented control
+            if self.useMenuLikeSegmentedControl {
+                self.menuScrollView.contentSize = CGSize(width: self.view.frame.width, height: self.menuHeight)
+                
+                // Resize selectionIndicator bar
+                let selectionIndicatorX : CGFloat = CGFloat(self.currentPageIndex) * (self.view.frame.width / CGFloat(self.controllerArray.count))
+                let selectionIndicatorWidth : CGFloat = self.view.frame.width / CGFloat(self.controllerArray.count)
+                self.selectionIndicatorView.frame =  CGRect(x: selectionIndicatorX, y: self.selectionIndicatorView.frame.origin.y, width: selectionIndicatorWidth, height: self.selectionIndicatorView.frame.height)
+                // Resize menu items
+                var index : Int = 0
+                
+                for item : MenuItemView in self.menuItems as [MenuItemView] {
+                    item.frame = CGRect(x: self.view.frame.width / CGFloat(self.controllerArray.count) * CGFloat(index), y: 0.0, width: self.view.frame.width / CGFloat(self.controllerArray.count), height: self.menuHeight)
+                    item.titleLabel!.frame = CGRect(x: 0.0, y: 0.0, width: self.view.frame.width / CGFloat(self.controllerArray.count), height: self.menuHeight)
+                    item.menuItemSeparator!.frame = CGRect(x: item.frame.width - (self.menuItemSeparatorWidth / 2), y: item.menuItemSeparator!.frame.origin.y, width: item.menuItemSeparator!.frame.width, height: item.menuItemSeparator!.frame.height)
+                    
+                    index += 1
+                }
+            }
+                
+            else if self.menuItemWidthBasedOnTitleTextWidth && self.centerMenuItems {
+                self.configureMenuItemWidthBasedOnTitleTextWidthAndCenterMenuItems()
+                let selectionIndicatorX = self.menuItems[self.currentPageIndex].frame.minX
+                self.selectionIndicatorView.frame = CGRect(x: selectionIndicatorX, y: self.menuHeight - self.selectionIndicatorHeight, width: self.menuItemWidths[self.currentPageIndex], height: self.selectionIndicatorHeight)
+            } else if self.centerMenuItems {
+                self.startingMenuMargin = ((self.view.frame.width - ((CGFloat(self.controllerArray.count) * self.menuItemWidth) + (CGFloat(self.controllerArray.count - 1) * self.menuMargin))) / 2.0) -  self.menuMargin
+                
+                if self.startingMenuMargin < 0.0 {
+                    self.startingMenuMargin = 0.0
+                }
+                
+                let selectionIndicatorX : CGFloat = self.menuItemWidth * CGFloat(self.currentPageIndex) + self.menuMargin * CGFloat(self.currentPageIndex + 1) + self.startingMenuMargin
+                self.selectionIndicatorView.frame =  CGRect(x: selectionIndicatorX, y: self.selectionIndicatorView.frame.origin.y, width: self.selectionIndicatorView.frame.width, height: self.selectionIndicatorView.frame.height)
+                
+                // Recalculate frame for menu items if centered
+                var index : Int = 0
+                
+                for item : MenuItemView in self.menuItems as [MenuItemView] {
+                    if index == 0 {
+                        item.frame = CGRect(x: self.startingMenuMargin + self.menuMargin, y: 0.0, width: self.menuItemWidth, height: self.menuHeight)
+                    } else {
+                        item.frame = CGRect(x: self.menuItemWidth * CGFloat(index) + self.menuMargin * CGFloat(index + 1) + self.startingMenuMargin, y: 0.0, width: self.menuItemWidth, height: self.menuHeight)
+                    }
+                    
+                    index += 1
+                }
+            }
+            
+            for view : UIView in self.controllerScrollView.subviews {
+                view.frame = CGRect(x: self.view.frame.width * CGFloat(self.currentPageIndex), y: self.menuHeight, width: self.controllerScrollView.frame.width, height: self.view.frame.height - self.menuHeight)
+            }
+            
+            let xOffset : CGFloat = CGFloat(self.currentPageIndex) * self.controllerScrollView.frame.width
+            self.controllerScrollView.setContentOffset(CGPoint(x: xOffset, y: self.controllerScrollView.contentOffset.y), animated: false)
+            
+            let ratio : CGFloat = (self.menuScrollView.contentSize.width - self.view.frame.width) / (self.controllerScrollView.contentSize.width - self.view.frame.width)
+            
+            if self.menuScrollView.contentSize.width > self.view.frame.width {
+                var offset : CGPoint = self.menuScrollView.contentOffset
+                offset.x = self.controllerScrollView.contentOffset.x * ratio
+                self.menuScrollView.setContentOffset(offset, animated: false)
+            }
+            self.view.layoutIfNeeded()
+        }
+        
+        super.traitCollectionDidChange(previousTraitCollection)
+    }
+    
     
     
     // MARK: - Orientation Change
