@@ -950,7 +950,7 @@ open class CAPSPageMenu: UIViewController, UIScrollViewDelegate, UIGestureRecogn
         
         oldVC.willMove(toParentViewController: nil)
         
-        oldVC.view = nil
+        //oldVC.view = nil
         oldVC.view.removeFromSuperview()
         oldVC.removeFromParentViewController()
         
